@@ -165,7 +165,8 @@ export interface SalonConfig {
     benefits: string[];
     conciergeNote: string;
     conciergePhone: string;
-    timeSlots: { id: string; label: string }[];
+    timeSlots: { id: string; label: string; period: 'morning' | 'afternoon' | 'evening'; times: string[] }[];
+    specialists: { id: string; name: string; role: string; tag?: string }[];
   };
   locationSection: {
     eyebrow: string;
@@ -570,9 +571,56 @@ export const salonConfig: SalonConfig = {
       "Need a consultation for wedding parties or bespoke group bookings? Contact our concierge at ",
     conciergePhone: "+91 XXXXXXXXXX",
     timeSlots: [
-      { id: "morning", label: "Morning (10:00 AM – 1:00 PM)" },
-      { id: "afternoon", label: "Afternoon (1:00 PM – 4:30 PM)" },
-      { id: "evening", label: "Evening (4:30 PM – 8:00 PM)" },
+      {
+        id: "morning",
+        label: "Morning (10:00 AM – 1:00 PM)",
+        period: "morning",
+        times: ["10:00 AM", "11:15 AM", "12:00 PM"],
+      },
+      {
+        id: "afternoon",
+        label: "Afternoon (1:00 PM – 4:30 PM)",
+        period: "afternoon",
+        times: ["1:15 PM", "2:30 PM", "3:45 PM"],
+      },
+      {
+        id: "evening",
+        label: "Evening (4:30 PM – 8:00 PM)",
+        period: "evening",
+        times: ["4:45 PM", "6:00 PM", "7:15 PM"],
+      },
+    ],
+    specialists: [
+      {
+        id: "any",
+        name: "First Available Specialist",
+        role: "Any Master Artisan (Optimal Availability)",
+        tag: "Recommended",
+      },
+      {
+        id: "elena",
+        name: "Elena Rostova",
+        role: "Master Hair Artisan & Creative Director",
+        tag: "Hair & Cut Lead",
+      },
+      {
+        id: "julian",
+        name: "Julian Mercier",
+        role: "Editorial Colour & Balayage Specialist",
+        tag: "Balayage Master",
+      },
+      {
+        id: "amara",
+        name: "Amara Chen",
+        role: "Skin Aesthetician & Gua Sha Master",
+        tag: "Skin Specialist",
+      },
+      {
+        id: "marcus",
+        name: "Marcus Vance",
+        role: "Senior Precision Stylist & Barber",
+        tag: "Precision Grooming",
+      },
     ],
   },
 

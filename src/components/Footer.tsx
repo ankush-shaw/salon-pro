@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
+import { Lock } from 'lucide-react';
 import { salonConfig } from '../config/salon';
 
-export const Footer: React.FC = () => {
+interface FooterProps {
+  onOpenAdmin?: () => void;
+}
+
+export const Footer: React.FC<FooterProps> = ({ onOpenAdmin }) => {
   const { footer, contact } = salonConfig;
   const [subscribedEmail, setSubscribedEmail] = useState('');
   const [subscriptionSubmitted, setSubscriptionSubmitted] = useState(false);
@@ -122,13 +127,28 @@ export const Footer: React.FC = () => {
         {/* Bottom Bar */}
         <div className="border-t border-primary-container pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-primary-fixed-dim font-sans text-xs">
           <p>{footer.copyright}</p>
-          <div className="flex gap-6">
+          <div className="flex items-center gap-6">
             <a href="#hero" className="hover:text-secondary-fixed transition-colors">
               Privacy Policy
             </a>
             <a href="#hero" className="hover:text-secondary-fixed transition-colors">
               Terms of Service
             </a>
+            <button
+              type="button"
+              onClick={() => {
+                if (onOpenAdmin) {
+                  onOpenAdmin();
+                } else {
+                  window.location.hash = '#admin';
+                }
+              }}
+              className="inline-flex items-center gap-1.5 text-primary-fixed-dim hover:text-secondary-fixed transition-colors"
+              title="Staff & Salon Manager Portal"
+            >
+              <Lock className="w-3 h-3 text-secondary-fixed" />
+              <span>Staff Portal</span>
+            </button>
           </div>
         </div>
       </div>

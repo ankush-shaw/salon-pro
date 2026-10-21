@@ -13,7 +13,11 @@ import { FAQ } from '../components/FAQ';
 import { Footer } from '../components/Footer';
 import { WhatsAppButton } from '../components/WhatsAppButton';
 
-export const Home: React.FC = () => {
+interface HomeProps {
+  onOpenAdmin?: () => void;
+}
+
+export const Home: React.FC<HomeProps> = ({ onOpenAdmin }) => {
   const [selectedServiceId, setSelectedServiceId] = useState<string | undefined>(undefined);
 
   const handleSelectService = (serviceId: string) => {
@@ -59,7 +63,7 @@ export const Home: React.FC = () => {
       </main>
 
       {/* 12. Footer */}
-      <Footer />
+      <Footer onOpenAdmin={onOpenAdmin} />
 
       {/* 13. Floating WhatsApp Concierge Action */}
       <WhatsAppButton />
