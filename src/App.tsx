@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { Home } from './pages/Home';
 import { AdminPortal } from './components/admin/AdminPortal';
 import { BookingProvider } from './context/BookingContext';
-import { Lock } from 'lucide-react';
 
 function App() {
   const getIsAdminPath = useCallback((): boolean => {
@@ -58,22 +57,7 @@ function App() {
       {isAdminView ? (
         <AdminPortal onExit={navigateToHome} />
       ) : (
-        <>
-          <Home onOpenAdmin={navigateToAdmin} />
-
-          {/* Discreet Floating Staff Portal Trigger for Quick Manager Access */}
-          <div className="fixed bottom-4 left-4 z-30">
-            <button
-              type="button"
-              onClick={navigateToAdmin}
-              className="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/90 text-primary-fixed hover:bg-primary text-[11px] font-sans border border-outline-variant/30 shadow-md backdrop-blur-sm"
-              title="Open Staff Manager Portal (PIN: 1234)"
-            >
-              <Lock className="w-3 h-3 text-secondary-fixed" />
-              <span className="tracking-wider uppercase text-[10px] font-semibold">Staff Portal</span>
-            </button>
-          </div>
-        </>
+        <Home onOpenAdmin={navigateToAdmin} />
       )}
     </BookingProvider>
   );
