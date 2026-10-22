@@ -1,35 +1,45 @@
-import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getFirestore, type Firestore } from 'firebase/firestore';
-
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
-};
-
 export const isFirebaseConfigured = Boolean(
-  firebaseConfig.apiKey &&
-  firebaseConfig.projectId &&
-  !firebaseConfig.apiKey.includes('YOUR_') &&
-  !firebaseConfig.projectId.includes('YOUR_')
+  import.meta.env.VITE_FIREBASE_API_KEY &&
+  import.meta.env.VITE_FIREBASE_PROJECT_ID &&
+  !import.meta.env.VITE_FIREBASE_API_KEY.includes('YOUR_') &&
+  !import.meta.env.VITE_FIREBASE_PROJECT_ID.includes('YOUR_')
 );
 
-let app: FirebaseApp | null = null;
-let db: Firestore | null = null;
+// Cached promise for dynamic lazy loading
+let firebasePromise: Promise<{ app: any; db: any; firestore: any }> | null = null;
 
-if (isFirebaseConfigured) {
-  try {
-    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-    db = getFirestore(app);
-    console.log('🔥 Firebase Cloud Firestore initialized successfully!');
-  } catch (err) {
-    console.error('🔥 Failed to initialize Firebase:', err);
+export const getLazyFirebase = async () => {
+  if (!isFirebaseConfigured) {
+    return { app: null, db: null, firestore: null };
   }
-} else {
-  console.info('ℹ️ Firebase not configured yet. Operating in local offline mode (localStorage).');
-}
 
-export { app, db };
+  if (!firebasePromise) {
+    firebasePromise = (async () => {
+      try {
+        const [{ initializeApp, getApps }, firestore] = await Promise.all([
+          import('firebase/app'),
+          import('firebase/firestore'),
+        ]);
+
+        const firebaseConfig = {
+          apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+          authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+          projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+          storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+          messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+          appId: import.meta.env.VITE_FIREBASE_APP_ID,
+        };
+
+        const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+        const db = firestore.getFirestore(app);
+        console.log('🔥 Lazy Firebase Cloud Firestore connected!');
+        return { app, db, firestore };
+      } catch (err) {
+        console.error('🔥 Error initializing lazy Firebase:', err);
+        return { app: null, db: null, firestore: null };
+      }
+    })();
+  }
+
+  return firebasePromise;
+};

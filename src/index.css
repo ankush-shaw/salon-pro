@@ -76,28 +76,14 @@ button, a, input, select, textarea {
   }
 }
 
-.animate-hero-eyebrow {
-  animation: heroFadeUp 450ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.animate-hero-title {
-  animation: heroFadeUp 550ms cubic-bezier(0.16, 1, 0.3, 1) 90ms both;
-}
-
-.animate-hero-desc {
-  animation: heroFadeUp 550ms cubic-bezier(0.16, 1, 0.3, 1) 180ms both;
-}
-
-.animate-hero-cta {
-  animation: heroFadeUp 550ms cubic-bezier(0.16, 1, 0.3, 1) 270ms both;
-}
-
-.animate-hero-badge {
-  animation: heroFadeUp 450ms cubic-bezier(0.16, 1, 0.3, 1) 360ms both;
-}
-
+.animate-hero-eyebrow,
+.animate-hero-title,
+.animate-hero-desc,
+.animate-hero-cta,
+.animate-hero-badge,
 .animate-hero-image {
-  animation: heroFadeIn 650ms cubic-bezier(0.16, 1, 0.3, 1) 120ms both;
+  opacity: 1;
+  transform: none;
 }
 
 /* Universal Reduced Motion Accessibility */

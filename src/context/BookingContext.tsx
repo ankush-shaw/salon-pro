@@ -1,19 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import type { Booking, BookingStatus, BookingStats } from '../types/booking';
 import { getRelativeDate } from '../utils/date';
-import { db, isFirebaseConfigured } from '../lib/firebase';
-import {
-  collection,
-  doc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  onSnapshot,
-  query,
-  orderBy,
-  writeBatch,
-  type Firestore
-} from 'firebase/firestore';
+import { getLazyFirebase, isFirebaseConfigured } from '../lib/firebase';
 
 interface BookingContextType {
   bookings: Booking[];
@@ -160,49 +148,63 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [isLoading, setIsLoading] = useState<boolean>(isFirebaseConfigured);
 
-  // Real-time Firestore sync
+  // Real-time Firestore sync — Only activate persistent stream on Admin dashboard!
   useEffect(() => {
-    const firestore = db as Firestore | null;
-    if (!isFirebaseConfigured || !firestore) {
+    let unsubscribe: (() => void) | undefined;
+
+    const isAdminRoute =
+      typeof window !== 'undefined' &&
+      (window.location.pathname.includes('/admin') ||
+        window.location.hash.includes('#admin') ||
+        window.location.search.includes('admin'));
+
+    if (!isFirebaseConfigured || !isAdminRoute) {
       setIsLoading(false);
       return;
     }
 
-    const q = query(collection(firestore, 'bookings'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        if (!snapshot.empty) {
-          const cloudBookings: Booking[] = snapshot.docs.map((docSnap) => ({
-            ...(docSnap.data() as Booking),
-            id: docSnap.id,
-          }));
-          setBookings(cloudBookings);
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudBookings));
-          } catch (e) {
-            console.warn('Failed to cache cloud bookings to localStorage', e);
-          }
-        } else {
-          // If Firestore is completely fresh, populate with initial bookings so dashboard is never empty
-          const seedData = getInitialMockBookings();
-          setBookings(seedData);
-          const batch = writeBatch(firestore);
-          seedData.forEach((b) => {
-            const bRef = doc(firestore, 'bookings', b.id);
-            batch.set(bRef, b);
-          });
-          batch.commit().catch((err) => console.warn('Failed to seed initial bookings to Firestore', err));
-        }
+    getLazyFirebase().then(({ db, firestore }) => {
+      if (!db || !firestore) {
         setIsLoading(false);
-      },
-      (error) => {
-        console.error('🔥 Firestore onSnapshot error:', error);
-        setIsLoading(false);
+        return;
       }
-    );
 
-    return () => unsubscribe();
+      const q = firestore.query(
+        firestore.collection(db, 'bookings'),
+        firestore.orderBy('createdAt', 'desc')
+      );
+
+      unsubscribe = firestore.onSnapshot(
+        q,
+        (snapshot: any) => {
+          if (!snapshot.empty) {
+            const cloudBookings: Booking[] = snapshot.docs.map((docSnap: any) => ({
+              ...docSnap.data(),
+              id: docSnap.id,
+            }));
+            setBookings(cloudBookings);
+          } else {
+            const seedData = getInitialMockBookings();
+            setBookings(seedData);
+            const batch = firestore.writeBatch(db);
+            seedData.forEach((b: Booking) => {
+              const bRef = firestore.doc(db, 'bookings', b.id);
+              batch.set(bRef, b);
+            });
+            batch.commit().catch((err: any) => console.warn('Failed to seed initial bookings', err));
+          }
+          setIsLoading(false);
+        },
+        (error: any) => {
+          console.error('🔥 Firestore onSnapshot error:', error);
+          setIsLoading(false);
+        }
+      );
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   // Sync to localStorage as non-blocking offline cache
@@ -236,12 +238,16 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // Optimistic local update
       setBookings((prev) => [newBooking, ...prev]);
 
-      // If Firebase configured, persist to cloud in real-time
-      const firestore = db as Firestore | null;
-      if (isFirebaseConfigured && firestore) {
-        setDoc(doc(firestore, 'bookings', newBooking.id), newBooking)
-          .then(() => console.log(`🔥 Booking ${newBooking.id} saved to Cloud Firestore!`))
-          .catch((err) => console.error('🔥 Error writing booking to Firestore:', err));
+      // Non-blocking lazy persistence to Firestore
+      if (isFirebaseConfigured) {
+        getLazyFirebase().then(({ db, firestore }) => {
+          if (db && firestore) {
+            firestore
+              .setDoc(firestore.doc(db, 'bookings', newBooking.id), newBooking)
+              .then(() => console.log(`🔥 Booking ${newBooking.id} saved to Cloud Firestore!`))
+              .catch((err: any) => console.error('🔥 Error writing booking:', err));
+          }
+        });
       }
 
       return newBooking;
@@ -269,21 +275,22 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       );
 
       // Cloud update
-      const firestore = db as Firestore | null;
-      if (isFirebaseConfigured && firestore) {
-        try {
-          const updatePayload: Record<string, unknown> = {
-            status,
-            updatedAt,
-          };
-          if (status === 'declined') {
-            updatePayload.declineReason = declineReason || 'Declined by atelier manager';
+      if (isFirebaseConfigured) {
+        getLazyFirebase().then(({ db, firestore }) => {
+          if (db && firestore) {
+            const updatePayload: Record<string, unknown> = {
+              status,
+              updatedAt,
+            };
+            if (status === 'declined') {
+              updatePayload.declineReason = declineReason || 'Declined by atelier manager';
+            }
+            firestore
+              .updateDoc(firestore.doc(db, 'bookings', id), updatePayload)
+              .then(() => console.log(`🔥 Booking ${id} status updated in Cloud Firestore to ${status}`))
+              .catch((err: any) => console.error('🔥 Error updating booking in Firestore:', err));
           }
-          await updateDoc(doc(firestore, 'bookings', id), updatePayload);
-          console.log(`🔥 Booking ${id} status updated in Cloud Firestore to ${status}`);
-        } catch (err) {
-          console.error('🔥 Error updating booking status in Firestore:', err);
-        }
+        });
       }
     },
     []
@@ -292,14 +299,15 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const deleteBooking = useCallback(async (id: string) => {
     setBookings((prev) => prev.filter((b) => b.id !== id));
 
-    const firestore = db as Firestore | null;
-    if (isFirebaseConfigured && firestore) {
-      try {
-        await deleteDoc(doc(firestore, 'bookings', id));
-        console.log(`🔥 Booking ${id} deleted from Cloud Firestore`);
-      } catch (err) {
-        console.error('🔥 Error deleting booking from Firestore:', err);
-      }
+    if (isFirebaseConfigured) {
+      getLazyFirebase().then(({ db, firestore }) => {
+        if (db && firestore) {
+          firestore
+            .deleteDoc(firestore.doc(db, 'bookings', id))
+            .then(() => console.log(`🔥 Booking ${id} deleted from Cloud Firestore`))
+            .catch((err: any) => console.error('🔥 Error deleting booking from Firestore:', err));
+        }
+      });
     }
   }, []);
 
@@ -312,19 +320,20 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       console.warn('Failed to reset bookings in localStorage', e);
     }
 
-    const firestore = db as Firestore | null;
-    if (isFirebaseConfigured && firestore) {
-      try {
-        const batch = writeBatch(firestore);
-        fresh.forEach((b) => {
-          const bRef = doc(firestore, 'bookings', b.id);
-          batch.set(bRef, b);
-        });
-        await batch.commit();
-        console.log('🔥 Reset Firestore to fresh mock bookings');
-      } catch (err) {
-        console.error('🔥 Error resetting Firestore bookings:', err);
-      }
+    if (isFirebaseConfigured) {
+      getLazyFirebase().then(({ db, firestore }) => {
+        if (db && firestore) {
+          const batch = firestore.writeBatch(db);
+          fresh.forEach((b: Booking) => {
+            const bRef = firestore.doc(db, 'bookings', b.id);
+            batch.set(bRef, b);
+          });
+          batch
+            .commit()
+            .then(() => console.log('🔥 Reset Firestore to fresh mock bookings'))
+            .catch((err: any) => console.error('🔥 Error resetting Firestore bookings:', err));
+        }
+      });
     }
   }, []);
 

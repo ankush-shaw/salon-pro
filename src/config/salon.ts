@@ -250,7 +250,7 @@ export const salonConfig: SalonConfig = {
     locationBadge: "Central District, Atelier Studio",
     policyBadge: "By Appointment Only",
     image: {
-      src: "https://lh3.googleusercontent.com/aida-public/AB6AXuCV2vfryExHhgMg88eCCO3FgQYO3qJ06gipcXYU4Ll0-f8Aben7ZKaB1cVLtuPWaOMDczXP2SAoXDkLyhFIv_DhWiBUXO377UI7cJhQGRxhsWSgK8lmGnuSLb98UG0bbljW1E912rOMp5MiKPG06Vm7oRAPiNs9ghzATIEK3Z5kAC_s0rx9gveO_L7Qg7SWzjyEB6UWYMtHx0X_hHkG8vhZRstgFijLhng_pWVu-_wclR19NJ2_l7lN",
+      src: "/hero.jpg",
       alt: "An elegant, softly lit luxury salon interior with natural daylight streaming through tall arched windows onto smooth limestone floors.",
       suiteNumber: "Private Atelier Suite No. 04",
       volumeTag: "Vol. 2025",
