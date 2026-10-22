@@ -1,7 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Home } from './pages/Home';
-import { AdminPortal } from './components/admin/AdminPortal';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { BookingProvider } from './context/BookingContext';
+
+const Home = lazy(() => import('./pages/Home').then((m) => ({ default: m.Home })));
+const AdminPortal = lazy(() =>
+  import('./components/admin/AdminPortal').then((m) => ({ default: m.AdminPortal }))
+);
+
+const LoadingFallback = () => (
+  <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="w-6 h-6 border-2 border-secondary/30 border-t-secondary animate-spin"></div>
+  </div>
+);
 
 function App() {
   const getIsAdminPath = useCallback((): boolean => {
@@ -54,11 +63,13 @@ function App() {
 
   return (
     <BookingProvider>
-      {isAdminView ? (
-        <AdminPortal onExit={navigateToHome} />
-      ) : (
-        <Home onOpenAdmin={navigateToAdmin} />
-      )}
+      <Suspense fallback={<LoadingFallback />}>
+        {isAdminView ? (
+          <AdminPortal onExit={navigateToHome} />
+        ) : (
+          <Home onOpenAdmin={navigateToAdmin} />
+        )}
+      </Suspense>
     </BookingProvider>
   );
 }

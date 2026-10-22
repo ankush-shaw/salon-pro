@@ -205,13 +205,17 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => unsubscribe();
   }, []);
 
-  // Sync to localStorage as offline cache
+  // Sync to localStorage as non-blocking offline cache
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(bookings));
-    } catch (e) {
-      console.warn('Failed to save bookings to localStorage', e);
-    }
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(bookings));
+      } catch (e) {
+        console.warn('Failed to save bookings to localStorage', e);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
   }, [bookings]);
 
   // Generate unique booking code

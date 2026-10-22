@@ -81,7 +81,7 @@ export const ScrollReveal: React.FC<ScrollRevealProps> = ({
         transitionDelay: `${delay}ms`,
         transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
       }}
-      className={`transition-all will-change-[opacity,transform] ${motionClasses} ${className}`}
+      className={`transition-all ${motionClasses} ${className}`}
     >
       {children}
     </div>

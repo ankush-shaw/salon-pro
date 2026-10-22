@@ -6,22 +6,30 @@ export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('hero');
 
-  // Track scroll position to highlight active section
+  // Track scroll position to highlight active section with rAF throttle (zero jank)
   useEffect(() => {
-    const handleScroll = () => {
-      const sections = ['hero', 'services', 'philosophy', 'gallery', 'atelier', 'contact', 'appointment'];
-      const scrollY = window.scrollY + 120;
+    let ticking = false;
 
-      for (const sectionId of sections) {
-        const el = document.getElementById(sectionId);
-        if (el) {
-          const top = el.offsetTop;
-          const height = el.offsetHeight;
-          if (scrollY >= top && scrollY < top + height) {
-            setActiveSection(sectionId);
-            break;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const sections = ['hero', 'services', 'philosophy', 'gallery', 'atelier', 'contact', 'appointment'];
+          const scrollY = window.scrollY + 120;
+
+          for (const sectionId of sections) {
+            const el = document.getElementById(sectionId);
+            if (el) {
+              const top = el.offsetTop;
+              const height = el.offsetHeight;
+              if (scrollY >= top && scrollY < top + height) {
+                setActiveSection(sectionId);
+                break;
+              }
+            }
           }
-        }
+          ticking = false;
+        });
+        ticking = true;
       }
     };
 

@@ -41,7 +41,7 @@ export const Gallery: React.FC = () => {
                   decoding="async"
                   width="600"
                   height="800"
-                  className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04] will-change-transform"
+                  className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
                 />
               </div>
               <div className="p-4 bg-surface-container-lowest flex justify-between items-center">
@@ -65,7 +65,7 @@ export const Gallery: React.FC = () => {
                   decoding="async"
                   width="600"
                   height="600"
-                  className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04] will-change-transform"
+                  className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
                 />
               </div>
               <div className="p-4 bg-surface-container-lowest flex justify-between items-center">
@@ -92,7 +92,7 @@ export const Gallery: React.FC = () => {
                   decoding="async"
                   width="600"
                   height="900"
-                  className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04] will-change-transform"
+                  className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
                 />
               </div>
               <div className="p-4 bg-surface-container-lowest flex justify-between items-center">
@@ -129,7 +129,7 @@ export const Gallery: React.FC = () => {
                   decoding="async"
                   width="600"
                   height="600"
-                  className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04] will-change-transform"
+                  className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
                 />
               </div>
               <div className="p-4 bg-surface-container-lowest flex justify-between items-center">
@@ -153,7 +153,7 @@ export const Gallery: React.FC = () => {
                   decoding="async"
                   width="600"
                   height="750"
-                  className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04] will-change-transform"
+                  className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
                 />
               </div>
               <div className="p-4 bg-surface-container-lowest flex justify-between items-center">
