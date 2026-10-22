@@ -1,15 +1,30 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import type { Booking, BookingStatus, BookingStats } from '../types/booking';
 import { getRelativeDate } from '../utils/date';
+import { db, isFirebaseConfigured } from '../lib/firebase';
+import {
+  collection,
+  doc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  writeBatch,
+  type Firestore
+} from 'firebase/firestore';
 
 interface BookingContextType {
   bookings: Booking[];
   addBooking: (data: Omit<Booking, 'id' | 'status' | 'createdAt' | 'updatedAt'>) => Booking;
-  updateBookingStatus: (id: string, status: BookingStatus, declineReason?: string) => void;
-  deleteBooking: (id: string) => void;
-  resetToMockData: () => void;
+  updateBookingStatus: (id: string, status: BookingStatus, declineReason?: string) => Promise<void> | void;
+  deleteBooking: (id: string) => Promise<void> | void;
+  resetToMockData: () => Promise<void> | void;
   stats: BookingStats;
   getBookingById: (id: string) => Booking | undefined;
+  isLiveSync: boolean;
+  isLoading: boolean;
 }
 
 const STORAGE_KEY = 'atelier_salon_bookings_v1';
@@ -143,7 +158,54 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return initial;
   });
 
-  // Sync to localStorage whenever bookings change
+  const [isLoading, setIsLoading] = useState<boolean>(isFirebaseConfigured);
+
+  // Real-time Firestore sync
+  useEffect(() => {
+    const firestore = db as Firestore | null;
+    if (!isFirebaseConfigured || !firestore) {
+      setIsLoading(false);
+      return;
+    }
+
+    const q = query(collection(firestore, 'bookings'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const cloudBookings: Booking[] = snapshot.docs.map((docSnap) => ({
+            ...(docSnap.data() as Booking),
+            id: docSnap.id,
+          }));
+          setBookings(cloudBookings);
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudBookings));
+          } catch (e) {
+            console.warn('Failed to cache cloud bookings to localStorage', e);
+          }
+        } else {
+          // If Firestore is completely fresh, populate with initial bookings so dashboard is never empty
+          const seedData = getInitialMockBookings();
+          setBookings(seedData);
+          const batch = writeBatch(firestore);
+          seedData.forEach((b) => {
+            const bRef = doc(firestore, 'bookings', b.id);
+            batch.set(bRef, b);
+          });
+          batch.commit().catch((err) => console.warn('Failed to seed initial bookings to Firestore', err));
+        }
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error('🔥 Firestore onSnapshot error:', error);
+        setIsLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  // Sync to localStorage as offline cache
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(bookings));
@@ -158,39 +220,86 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return `#ATL-${randomNum}`;
   }, []);
 
-  const addBooking = useCallback((data: Omit<Booking, 'id' | 'status' | 'createdAt' | 'updatedAt'>): Booking => {
-    const newBooking: Booking = {
-      ...data,
-      id: generateBookingId(),
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-    };
+  const addBooking = useCallback(
+    (data: Omit<Booking, 'id' | 'status' | 'createdAt' | 'updatedAt'>): Booking => {
+      const newBooking: Booking = {
+        ...data,
+        id: generateBookingId(),
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      };
 
-    setBookings((prev) => [newBooking, ...prev]);
-    return newBooking;
-  }, [generateBookingId]);
+      // Optimistic local update
+      setBookings((prev) => [newBooking, ...prev]);
 
-  const updateBookingStatus = useCallback((id: string, status: BookingStatus, declineReason?: string) => {
-    setBookings((prev) =>
-      prev.map((booking) => {
-        if (booking.id === id) {
-          return {
-            ...booking,
+      // If Firebase configured, persist to cloud in real-time
+      const firestore = db as Firestore | null;
+      if (isFirebaseConfigured && firestore) {
+        setDoc(doc(firestore, 'bookings', newBooking.id), newBooking)
+          .then(() => console.log(`🔥 Booking ${newBooking.id} saved to Cloud Firestore!`))
+          .catch((err) => console.error('🔥 Error writing booking to Firestore:', err));
+      }
+
+      return newBooking;
+    },
+    [generateBookingId]
+  );
+
+  const updateBookingStatus = useCallback(
+    async (id: string, status: BookingStatus, declineReason?: string) => {
+      const updatedAt = new Date().toISOString();
+
+      // Local update
+      setBookings((prev) =>
+        prev.map((booking) => {
+          if (booking.id === id) {
+            return {
+              ...booking,
+              status,
+              declineReason: status === 'declined' ? declineReason || booking.declineReason : undefined,
+              updatedAt,
+            };
+          }
+          return booking;
+        })
+      );
+
+      // Cloud update
+      const firestore = db as Firestore | null;
+      if (isFirebaseConfigured && firestore) {
+        try {
+          const updatePayload: Record<string, unknown> = {
             status,
-            declineReason: status === 'declined' ? declineReason || booking.declineReason : undefined,
-            updatedAt: new Date().toISOString(),
+            updatedAt,
           };
+          if (status === 'declined') {
+            updatePayload.declineReason = declineReason || 'Declined by atelier manager';
+          }
+          await updateDoc(doc(firestore, 'bookings', id), updatePayload);
+          console.log(`🔥 Booking ${id} status updated in Cloud Firestore to ${status}`);
+        } catch (err) {
+          console.error('🔥 Error updating booking status in Firestore:', err);
         }
-        return booking;
-      })
-    );
-  }, []);
+      }
+    },
+    []
+  );
 
-  const deleteBooking = useCallback((id: string) => {
+  const deleteBooking = useCallback(async (id: string) => {
     setBookings((prev) => prev.filter((b) => b.id !== id));
+
+    const firestore = db as Firestore | null;
+    if (isFirebaseConfigured && firestore) {
+      try {
+        await deleteDoc(doc(firestore, 'bookings', id));
+        console.log(`🔥 Booking ${id} deleted from Cloud Firestore`);
+      } catch (err) {
+        console.error('🔥 Error deleting booking from Firestore:', err);
+      }
+    }
   }, []);
 
-  const resetToMockData = useCallback(() => {
+  const resetToMockData = useCallback(async () => {
     const fresh = getInitialMockBookings();
     setBookings(fresh);
     try {
@@ -198,11 +307,29 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch (e) {
       console.warn('Failed to reset bookings in localStorage', e);
     }
+
+    const firestore = db as Firestore | null;
+    if (isFirebaseConfigured && firestore) {
+      try {
+        const batch = writeBatch(firestore);
+        fresh.forEach((b) => {
+          const bRef = doc(firestore, 'bookings', b.id);
+          batch.set(bRef, b);
+        });
+        await batch.commit();
+        console.log('🔥 Reset Firestore to fresh mock bookings');
+      } catch (err) {
+        console.error('🔥 Error resetting Firestore bookings:', err);
+      }
+    }
   }, []);
 
-  const getBookingById = useCallback((id: string) => {
-    return bookings.find((b) => b.id === id);
-  }, [bookings]);
+  const getBookingById = useCallback(
+    (id: string) => {
+      return bookings.find((b) => b.id.trim().toUpperCase() === id.trim().toUpperCase());
+    },
+    [bookings]
+  );
 
   // Calculate live statistics
   const stats = useMemo<BookingStats>(() => {
@@ -255,6 +382,8 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         resetToMockData,
         stats,
         getBookingById,
+        isLiveSync: isFirebaseConfigured,
+        isLoading,
       }}
     >
       {children}

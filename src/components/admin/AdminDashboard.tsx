@@ -29,7 +29,7 @@ interface AdminDashboardProps {
 type DateFilterType = 'today' | 'tomorrow' | 'this_week' | 'all';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExit, onLogout }) => {
-  const { bookings, updateBookingStatus, deleteBooking, resetToMockData, stats, addBooking } = useBookings();
+  const { bookings, updateBookingStatus, deleteBooking, resetToMockData, stats, addBooking, isLiveSync } = useBookings();
   const { servicesSection, appointmentSection } = salonConfig;
 
   // Filter & Search states
@@ -248,6 +248,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExit, onLogout
                 <span className="px-2 py-0.5 bg-secondary text-on-secondary text-[10px] font-sans font-bold tracking-widest uppercase">
                   Manager Suite
                 </span>
+                {isLiveSync ? (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 text-[10px] font-sans font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Live Cloud Sync
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-surface-variant/40 text-on-surface-variant border border-outline-variant/30 text-[10px] font-sans">
+                    Offline Demo Mode
+                  </span>
+                )}
               </div>
               <p className="text-[11px] text-primary-fixed-dim font-sans hidden sm:block">
                 Direct Appointment Booking System & Studio Operations
